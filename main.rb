@@ -41,4 +41,4 @@ def main_loop(app)
 end
 
 # srand 1024
-main_loop MainWindow.new
+main_loop MainWindow.new.show_all
