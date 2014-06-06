@@ -121,20 +121,28 @@ class Graphics
   attr_accessor :context
 
   def draw_tile coordinates, label, fg_color, bg_color,  width, height, zoom_factor
+    shadow_offset = Position.new(3, 3)
+    draw_rectangle(coordinates + shadow_offset, width, height, [0.3, 0.3, 0.3], zoom_factor)
     draw_rectangle(coordinates, width, height, bg_color, zoom_factor)
     draw_label(coordinates, label, fg_color, zoom_factor)
   end
 
   def fill_background color
-    @context.rectangle(0, 0, 640, 480)
+    # @context.rectangle(0, 0, 640, 480)
+    @context.rounded_rectangle(0, 0, 640, 480, 5)
     @context.set_source_rgb *color
     @context.fill
   end
 
   def draw_rectangle(pos, width, height, color, zoom_factor)
-    @context.rectangle(pos.x - (width/2 * zoom_factor), pos.y - (height/2 * zoom_factor),
-                       width * zoom_factor,
-                       height * zoom_factor)
+    # @context.rectangle(pos.x - (width/2 * zoom_factor), pos.y - (height/2 * zoom_factor),
+    #                    width * zoom_factor,
+    #                    height * zoom_factor)
+    @context.rounded_rectangle(pos.x - (width/2 * zoom_factor),
+                               pos.y - (height/2 * zoom_factor),
+                               width * zoom_factor,
+                               height * zoom_factor,
+                               5)
     @context.set_source_rgb *color
     @context.fill
   end
@@ -511,7 +519,7 @@ class Scene
   WHITE = [1, 1, 1]
   TILE_WIDTH = 100
   TILE_HEIGHT = 90
-  LEFT_MARGIN = 30
+  LEFT_MARGIN = 90
   TOP_MARGIN = 30
   VSPACING = 20
   HSPACING = 20
