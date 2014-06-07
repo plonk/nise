@@ -52,7 +52,6 @@ class Grid
     grid = Grid.new
     2.times do
       position = grid.random_available_cell
-      p position
       tile = Tile.new(position, [2,2,2,2,2,2,2,2,2,4].sample)
       grid[position] = tile
     end
@@ -121,29 +120,29 @@ class Graphics
   attr_accessor :context
 
   def draw_tile coordinates, label, fg_color, bg_color,  width, height, zoom_factor
-    shadow_offset = Position.new(3, 3)
-    draw_rectangle(coordinates + shadow_offset, width, height, [0.3, 0.3, 0.3], zoom_factor)
+    draw_shadow(coordinates, width, height, zoom_factor)
     draw_rectangle(coordinates, width, height, bg_color, zoom_factor)
     draw_label(coordinates, label, fg_color, zoom_factor)
   end
 
+  def draw_shadow coordinates, width, height, zoom_factor
+    shadow_offset = Position.new(3, 3)
+    draw_rectangle(coordinates + shadow_offset, width, height, [0,0,0, 0.3], zoom_factor)
+  end
+
   def fill_background color
-    # @context.rectangle(0, 0, 640, 480)
     @context.rounded_rectangle(0, 0, 640, 480, 5)
-    @context.set_source_rgb *color
+    @context.set_source_color color
     @context.fill
   end
 
   def draw_rectangle(pos, width, height, color, zoom_factor)
-    # @context.rectangle(pos.x - (width/2 * zoom_factor), pos.y - (height/2 * zoom_factor),
-    #                    width * zoom_factor,
-    #                    height * zoom_factor)
     @context.rounded_rectangle(pos.x - (width/2 * zoom_factor),
                                pos.y - (height/2 * zoom_factor),
                                width * zoom_factor,
                                height * zoom_factor,
                                5)
-    @context.set_source_rgb *color
+    @context.set_source_color color
     @context.fill
   end
 
@@ -168,17 +167,20 @@ class InputController
     @handlers = []
     @keyboard = Keyboard.new
 
-    @widget.events = Gdk::Event::KEY_PRESS_MASK | Gdk::Event::KEY_RELEASE_MASK
+    @widget.events |= Gdk::Event::KEY_PRESS_MASK | Gdk::Event::KEY_RELEASE_MASK
     @handlers << widget.signal_connect('key-press-event') do |*args|
       @keyboard.on_key_press(*args)
+      true
     end
 
     @handlers << widget.signal_connect('key-release-event') do |*args|
       @keyboard.on_key_release(*args)
+      true
     end
 
     @handlers << widget.signal_connect('focus-out-event') do
       @keyboard.forget_key_state
+      true
     end
   end
 

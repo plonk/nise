@@ -26,7 +26,7 @@ class MainWindow < Gtk::Window
 
   def init_ui
     create(VBox) do |vbox|
-      vbox.pack_start(create_button_box, false)
+      # vbox.pack_start(create_button_box, false)
       frame = AspectFrame.new(nil,	# no label
                               0.5, 0.5,	# center
                               -1, true) # infer aspect ratio from child
@@ -44,7 +44,8 @@ class MainWindow < Gtk::Window
     create(HButtonBox,
            layout_style: ButtonBox::Style::START,
            border_width: 5) do |box|
-      box.pack_start(Button.new('Reset'))
+      # button = create(Button, 'Reset')
+      # box.pack_start(button)
     end
   end
 
@@ -74,6 +75,16 @@ class GameView < Gtk::DrawingArea
 
     set_size_request 640, 480
     init_ui
+
+    self.events |= Gdk::Event::BUTTON_PRESS_MASK
+    signal_connect('button-press-event') do
+      if !focus?
+        grab_focus
+        true
+      else
+        false
+      end
+    end
   end
 
   def init_ui
@@ -99,17 +110,25 @@ class GameView < Gtk::DrawingArea
     [allocation.width, allocation.height]
   end
 
-  def zoom_ratio
-    width, height = size
-    [width.to_f / 640, height.to_f / 480].min
+  def zoom_ratio width, height
+    [width.to_f / 640, height.to_f / 480]
   end
 
   def redraw
     cr = window.create_cairo_context
-    # cr.scale(zoom_ratio, zoom_ratio)
-    cr.scale(size[0].to_f / 640, size[1].to_f / 480)
+    vratio, hratio = zoom_ratio(*size)
+    cr.scale(vratio, hratio)
     @scene.draw(cr)
+
+    draw_veil(cr) unless focus?
+
     cr.destroy
+  end
+
+  def draw_veil(cr)
+    cr.set_source_rgba(1,1,1, 0.5)
+    cr.rectangle(0, 0, 640, 480)
+    cr.fill
   end
 
   def update
