@@ -58,6 +58,20 @@ class Grid
     grid
   end
 
+  def self.testing_grid
+    grid = Grid.new
+    num = 2
+    for y in 0...4
+      for x in 0...4
+        pos = Position.new(x, y)
+        tile = Tile.new(pos, num)
+        grid[pos] = tile
+        num *= 2
+      end
+    end
+    grid
+  end
+
   def initialize
     @table = Array.new(4) { Array.new(4) }
   end
@@ -119,7 +133,41 @@ end
 class Graphics
   attr_accessor :context
 
-  def draw_tile coordinates, label, fg_color, bg_color,  width, height, zoom_factor
+  TILE_WIDTH = 100
+  TILE_HEIGHT = 90
+  LEFT_MARGIN = 90
+  TOP_MARGIN = 30
+  VSPACING = 20
+  HSPACING = 20
+
+  def translate(pos)
+    Position.new(LEFT_MARGIN + (HSPACING + TILE_WIDTH) * pos.x + TILE_WIDTH/2,
+                 TOP_MARGIN + (VSPACING + TILE_HEIGHT) * pos.y + TILE_HEIGHT/2)
+  end
+
+  def initialize
+    @background_image = Cairo::ImageSurface.from_png('background1.png')
+  end
+
+  def draw_background
+    @context.set_source(@background_image)
+    @context.paint
+  end
+
+  def draw_board
+    board_width = HSPACING * 5 + TILE_WIDTH * 4
+    board_height = VSPACING * 5 + TILE_HEIGHT * 4
+    pos = Position.new(LEFT_MARGIN + board_width/2 - HSPACING,
+                       TOP_MARGIN + board_height/2 - VSPACING)
+    draw_rectangle(pos,
+                   board_width,
+                   board_height,
+                   [0]*3 + [0.5],
+                   1.0) # zoom
+  end
+
+  def draw_tile coordinates, label, fg_color, bg_color, zoom_factor
+    width, height = [TILE_WIDTH, TILE_HEIGHT]
     draw_shadow(coordinates, width, height, zoom_factor)
     draw_rectangle(coordinates, width, height, bg_color, zoom_factor)
     draw_label(coordinates, label, fg_color, zoom_factor)
@@ -131,7 +179,7 @@ class Graphics
   end
 
   def fill_background color
-    @context.rounded_rectangle(0, 0, 640, 480, 5)
+    @context.rounded_rectangle(0, 0, 640, 480, 10)
     @context.set_source_color color
     @context.fill
   end
@@ -141,7 +189,7 @@ class Graphics
                                pos.y - (height/2 * zoom_factor),
                                width * zoom_factor,
                                height * zoom_factor,
-                               5)
+                               10)
     @context.set_source_color color
     @context.fill
   end
@@ -150,12 +198,23 @@ class Graphics
     @context.select_font_face('Arial Black',
                         Cairo::FONT_SLANT_NORMAL,
                         Cairo::FONT_WEIGHT_BOLD)
-    @context.set_font_size(40 * zoom_factor)
+    @context.set_font_size(label_size(label) * zoom_factor)
     @context.set_source_rgb(*color)
     extents = @context.text_extents(label)
     @context.move_to(pos.x - extents.width / 2 - extents.x_bearing,
                      pos.y - extents.height / 2 - extents.y_bearing)
     @context.show_text(label)
+  end
+
+  def label_size label
+    case label.size
+    when 1..3
+      40
+    when 4
+      35
+    else
+      28
+    end
   end
 end
 
@@ -242,9 +301,11 @@ class Game
       spawn_new_tile
     end
 
-    unless moves_available?
-      @over = true
-    end
+    decide_gameover
+  end
+
+  def decide_gameover
+    @over = !moves_available?
   end
 
   def moves_available?
@@ -305,8 +366,12 @@ class Game
   end
 
   def reset
-    @grid = Grid.starting_grid
-    @over = false
+    if $DEBUG
+      @grid = Grid.testing_grid
+    else
+      @grid = Grid.starting_grid
+    end
+    decide_gameover
   end
 end
 
@@ -375,7 +440,8 @@ class Scene
 
   def draw cr
     @graphics.context = cr
-    @graphics.fill_background([0.5,0.5,0.5])
+    @graphics.draw_background
+    @graphics.draw_board
     case @state
     when :animation
       animation_draw
@@ -392,34 +458,30 @@ class Scene
     when 0...10
       @game.grid.all_tiles.each do |tile|
         if tile.previous_position
-          old_coords = translate(tile.previous_position)
-          new_coords = translate(tile.position)
+          old_coords = @graphics.translate(tile.previous_position)
+          new_coords = @graphics.translate(tile.position)
           coords = old_coords.lerp(new_coords, @animation_frame / 10.0)
 
           @graphics.draw_tile(coords,
                               tile.number.to_s,
                               label_color(tile.number),
                               tile_color(tile.number),
-                              TILE_WIDTH,
-                              TILE_HEIGHT,
                               1)
         else
           # マージされたタイルの過去のすがたを描画する
           tile.merged_from.each do |half|
             if half.previous_position
-              old_coords = translate(half.previous_position)
+              old_coords = @graphics.translate(half.previous_position)
             else
-              old_coords = translate(half.position)
+              old_coords = @graphics.translate(half.position)
             end
-            new_coords = translate(half.position)
+            new_coords = @graphics.translate(half.position)
             coords = old_coords.lerp(new_coords, @animation_frame / 10.0)
 
             @graphics.draw_tile(coords,
                                 half.number.to_s,
                                 label_color(half.number),
                                 tile_color(half.number),
-                                TILE_WIDTH,
-                                TILE_HEIGHT,
                                 1)
           end
         end
@@ -441,12 +503,10 @@ class Scene
           scale = 1
         end
 
-        @graphics.draw_tile(translate(tile.position),
+        @graphics.draw_tile(@graphics.translate(tile.position),
                             tile.number.to_s,
                             label_color(tile.number),
                             tile_color(tile.number),
-                            TILE_WIDTH,
-                            TILE_HEIGHT,
                             scale)
       end
     end
@@ -456,12 +516,10 @@ class Scene
     @game.grid.all_tiles.each do |tile|
       number = tile.number.to_s
       color = tile_color(tile.number)
-      @graphics.draw_tile(translate(tile.position),
+      @graphics.draw_tile(@graphics.translate(tile.position),
                           number,
                           label_color(tile.number),
                           color,
-                          TILE_WIDTH,
-                          TILE_HEIGHT,
                           1.0)
     end
   end
@@ -484,11 +542,19 @@ class Scene
     when 32
       color('#005bed') # blue
     when 64
-      color('#f50a7f') # red
+      color('#ed0e81') # magenta
     when 128
       color('#0af580') # green
     when 256
+      color('#e03131') # dark red
+    when 512
+      color('#b105f5') # purple
+    when 1024
+      color('#0ce4f0') # cyan
+    when 2048
       color('#ffdd00') # yellow
+    when 4096
+      color('#19ffbe') # emerald
     else
       BLACK
     end
@@ -496,7 +562,7 @@ class Scene
 
   def label_color number
     case number
-    when 32, 64
+    when 32, 64, 256, 512, 8192..Float::INFINITY
       [0.9, 0.9, 0.9]
     else
       [0.2, 0.2, 0.2]
@@ -519,17 +585,6 @@ class Scene
   RED = [0.90, 0.25, 0.25]
   GREEN = [0.20, 0.80, 0.20]
   WHITE = [1, 1, 1]
-  TILE_WIDTH = 100
-  TILE_HEIGHT = 90
-  LEFT_MARGIN = 90
-  TOP_MARGIN = 30
-  VSPACING = 20
-  HSPACING = 20
-
-  def translate(pos)
-    Position.new(LEFT_MARGIN + (HSPACING + TILE_WIDTH) * pos.x + TILE_WIDTH/2,
-                 TOP_MARGIN + (VSPACING + TILE_HEIGHT) * pos.y + TILE_HEIGHT/2)
-  end
 
   def finished?
     false
