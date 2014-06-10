@@ -1,24 +1,6 @@
 # -*- coding: utf-8 -*-
-class Position
-  attr_accessor :x, :y
-  def initialize(x, y)
-    @x = x; @y = y
-  end
-
-  def +(other)
-    Position.new(x + other.x, y + other.y)
-  end
-
-  def *(scalar)
-    Position.new(x * scalar, y * scalar)
-  end
-
-  def lerp(other, factor)
-    fail RangeError unless factor >= 0 && factor <= 1
-
-    self * (1-factor) + other * factor
-  end
-end
+require_relative 'position'
+require_relative 'pond'
 
 class Tile
   attr_accessor :position, :previous_position, :number, :merged_from
@@ -146,12 +128,6 @@ class Graphics
   end
 
   def initialize
-    @background_image = Cairo::ImageSurface.from_png('background1.png')
-  end
-
-  def draw_background
-    @context.set_source(@background_image)
-    @context.paint
   end
 
   def draw_board
@@ -377,6 +353,7 @@ end
 
 class Scene
   def initialize main_window
+    @pond = Pond.new(main_window)
     @input = InputController.new(main_window)
     @graphics = Graphics.new
 
@@ -387,6 +364,7 @@ class Scene
   end
 
   def update
+    @pond.update
     case @state
     when :idle
       idle_update
@@ -439,8 +417,8 @@ class Scene
   end
 
   def draw cr
+    @pond.draw(cr)
     @graphics.context = cr
-    @graphics.draw_background
     @graphics.draw_board
     case @state
     when :animation

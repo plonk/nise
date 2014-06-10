@@ -118,6 +118,8 @@ class GameView < Gtk::DrawingArea
     cr = window.create_cairo_context
     vratio, hratio = zoom_ratio(*size)
     cr.scale(vratio, hratio)
+
+    draw_background(cr)
     @scene.draw(cr)
 
     draw_veil(cr) unless focus?
@@ -130,6 +132,23 @@ class GameView < Gtk::DrawingArea
     cr.rectangle(0, 0, 640, 480)
     cr.fill
   end
+
+  def draw_background(cr)
+    cr.set_source_color(color('#517051'))
+    cr.rectangle(0, 0, 640, 480)
+    cr.fill
+  end
+
+  def color str
+    if str =~ /^\#(..)(..)(..)$/
+      [$1, $2, $3].map do |digits|
+        digits.to_i(16) / 255.0
+      end
+    else
+      MAGENTA
+    end
+  end
+
 
   def update
     @scene.update

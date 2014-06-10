@@ -23,6 +23,8 @@ require_relative 'wave'
 require_relative 'frog'
 
 class Pond
+  NUM_FROGS = 3
+
   def initialize main_window
     @controller = Controller.new(self, main_window)
     @children = []
@@ -65,7 +67,7 @@ class Pond
 
   def update
     # カエルが居なければ産む
-    @children << create_frog if @children.count { |x| x.is_a? Frog } < 5
+    @children << create_frog if @children.count { |x| x.is_a? Frog } < NUM_FROGS
 
     @controller.update
     @children.each do |child|
